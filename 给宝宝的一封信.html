@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <title>新年快乐，宝宝</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#000000" />
+    <style>
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { 
+            height: 100%; width: 100%; 
+            background-color: #020202; 
+            overflow: hidden; 
+            font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "楷体", serif;
+            touch-action: none; 
+        }
+        canvas { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 1; 
+            cursor: pointer;
+        }
+
+        
+        #start-mask {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 999;
+            background: #000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1s ease;
+        }
+
+        .envelope-wrapper {
+            position: relative;
+            cursor: pointer;
+            animation: float 3s ease-in-out infinite;
+            display: none; 
+        }
+        .envelope {
+            position: relative;
+            width: 160px;
+            height: 100px;
+            background: #f7f7f7;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        
+        .envelope::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 0 0 100px 160px;
+            border-color: transparent transparent #e6e6e6 transparent;
+            z-index: 2;
+        }
+
+        .envelope::after {
+            content: '';
+            position: absolute;
+            bottom: 0; right: 0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 0 160px 55px 0;
+            border-color: transparent #d4d4d4 transparent transparent;
+            z-index: 3;
+        }
+
+        .envelope-flap {
+            position: absolute;
+            top: 0; left: 0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 55px 80px 0 80px;
+            border-color: #f0f0f0 transparent transparent transparent;
+            z-index: 4;
+            transform-origin: top;
+        }
+
+        .heart-seal {
+            position: absolute;
+            top: 35px; left: 50%;
+            transform: translateX(-50%);
+            width: 30px; height: 30px;
+            background: #ff4d4d;
+            border-radius: 50%;
+            z-index: 5;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .heart-seal::before {
+            content: '❤';
+            color: #fff;
+            font-size: 18px;
+            margin-top: 2px;
+        }
+
+        .click-text {
+            margin-top: 30px;
+            color: rgba(255,255,255,0.8);
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-align: center;
+            font-weight: bold;
+            animation: fadeIn 2s infinite alternate;
+        }
+        .loading-tip { margin-top: 10px; font-size: 0.8rem; color: #555; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0.5; }
+            to { opacity: 1; }
+        }
+        #text-container {
+            position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 88%; max-width: 500px; 
+            height: 65vh; 
+            z-index: 100;
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.1rem; line-height: 1.8;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.9);
+            background: rgba(10, 10, 20, 0.45);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            
+            padding: 25px 20px;
+            display: none;
+            
+            overflow-y: auto;
+            pointer-events: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        #text-container::-webkit-scrollbar { width: 0; display: none; }
+        
+        p { margin-bottom: 20px; text-align: justify; }
+        .highlight { color: #ffb6c1; font-weight: bold; border-bottom: 1px dashed #ffb6c1; }
+        
+        .cursor { display: inline-block; width: 2px; height: 1.2rem; background: #fff; vertical-align: sub; animation: blink 1s infinite; margin-left: 2px;}
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- 启动页 -->
+    <div id="start-mask">
+        <!-- 信封按钮结构 -->
+        <div class="envelope-wrapper" id="start-btn">
+            <div class="envelope">
+                <div class="envelope-flap"></div>
+                <div class="heart-seal"></div>
+            </div>
+            <div class="click-text">点击拆开信件</div>
+        </div>
+        <div class="loading-tip" id="loading-txt">资源加载中...</div>
+    </div>
+
+    <!-- 文字区域 -->
+    <div id="text-container">
+        <div id="text-content"></div>
+    </div>
+
+    <!-- 画布 -->
+    <canvas id="canvas"></canvas>
+
+    <script>
+
+         const textData = [
+            "新年快乐呀！宝宝，且看烟花（电子烟花也是烟花，嘻嘻），且迎新春",
+            "宝宝，继上次之后我又给你写了这一封信，不许不喜欢哦，不喜欢我也写了，哈哈哈哈。刚才看我情绪不高，心事重重的样子，其实是我在想这封信该怎写合适，推翻了好几个方案，也不知道怎么合适，时间紧迫，索性就随便写了。",
+             "写这段话的时候，想起我们相识于 <span class='highlight'>1 月 2 日</span>，那时候万万没想到你会一点一点走进我的心，闯进我的世界。日子过得真快，我对你的喜欢，也跟着一天比一天更深，现在，你成为了隔着屏幕就可以左右我的情绪的人。我们相识的时光虽然不算漫长，却早已被我视若珍宝。",
+            "宝宝，虽然我有时候会词不达意，会手足无措，会语无伦次，就像这封信一样哈哈，但请你相信，这份爱你的心，从未改变。",
+            "<span class='highlight'>娟娟宝宝</span>，我最可爱，最美丽，最温柔的宝宝。谢谢你用心地回应我，愿意分享你的点滴，这些瞬间都让我觉得无比幸福。",
+            "新的一年，不管在哪里，只要身边有你，我都满心欢喜。",
+            "愿你在<span class='highlight'>丙午马年</span>里，棋牌把把顺风，笑容常伴。未来的每一天，我都想陪在你身边，坚定地、一直喜欢你。❤️"
+        ];
+
+        const soundManager = {
+            ctx: null,
+            sources: {
+                lift: { urls: ['https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/lift1.mp3', 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/lift2.mp3', 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/lift3.mp3'], buffers: [] },
+                burst: { urls: ['https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/burst1.mp3', 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/burst2.mp3'], buffers: [] },
+                burstSmall: { urls: ['https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/burst-sm-1.mp3', 'https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/burst-sm-2.mp3'], buffers: [] },
+                crackle: { urls: ['https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/crackle1.mp3'], buffers: [] }
+            },
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            preload() {
+                this.init();
+                const promises = [];
+                Object.keys(this.sources).forEach(key => {
+                    this.sources[key].urls.forEach(url => {
+                        promises.push(fetch(url).then(r=>r.arrayBuffer()).then(b=>this.ctx.decodeAudioData(b)).then(d=>this.sources[key].buffers.push(d)).catch(e=>{}));
+                    });
+                });
+                return Promise.allSettled(promises);
+            },
+            play(type, vol = 1) {
+                if (!this.ctx || this.sources[type].buffers.length === 0) return;
+                const buffer = this.sources[type].buffers[Math.floor(Math.random() * this.sources[type].buffers.length)];
+                const source = this.ctx.createBufferSource();
+                source.buffer = buffer;
+                const gain = this.ctx.createGain();
+                gain.gain.value = vol;
+                source.connect(gain);
+                gain.connect(this.ctx.destination);
+                source.start(0);
+            },
+            resume() {
+                if (this.ctx && this.ctx.state !== 'running') this.ctx.resume();
+            }
+        };
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let cw = window.innerWidth;
+        let ch = window.innerHeight;
+        let fireworks = [];
+        let particles = [];
+        let hue = 120;
+        let timerTotal = 20; 
+        let timerTick = 0;
+        let running = false;
+
+        function setupCanvas() {
+            cw = window.innerWidth;
+            ch = window.innerHeight;
+            canvas.width = cw;
+            canvas.height = ch;
+        }
+        window.addEventListener('resize', setupCanvas);
+        setupCanvas();
+
+        function random(min, max) { return Math.random() * (max - min) + min; }
+        function calculateDistance(p1x, p1y, p2x, p2y) { return Math.sqrt(Math.pow((p1x - p2x), 2) + Math.pow((p1y - p2y), 2)); }
+
+        class Firework {
+            constructor(sx, sy, tx, ty) {
+                this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
+                this.tx = tx; this.ty = ty;
+                this.distanceToTarget = calculateDistance(sx, sy, tx, ty);
+                this.distanceTraveled = 0;
+                this.coordinates = [];
+                this.coordinateCount = 3;
+                while (this.coordinateCount--) { this.coordinates.push([this.x, this.y]); }
+                this.angle = Math.atan2(ty - sy, tx - sx);
+                this.speed = 2;
+                this.acceleration = 1.05;
+                this.brightness = random(50, 70);
+                this.targetRadius = 1;
+            }
+            update(index) {
+                this.coordinates.pop();
+                this.coordinates.unshift([this.x, this.y]);
+                if (this.targetRadius < 8) this.targetRadius += 0.3;
+                else this.targetRadius = 1;
+                
+                this.speed *= this.acceleration;
+                const vx = Math.cos(this.angle) * this.speed;
+                const vy = Math.sin(this.angle) * this.speed;
+                this.distanceTraveled = calculateDistance(this.sx, this.sy, this.x + vx, this.y + vy);
+                
+                if (this.distanceTraveled >= this.distanceToTarget) {
+                    createParticles(this.tx, this.ty);
+                    fireworks.splice(index, 1);
+                    soundManager.play('burst', 1.0); 
+                } else {
+                    this.x += vx;
+                    this.y += vy;
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+                ctx.lineTo(this.x, this.y);
+                ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + this.brightness + '%)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.coordinates = [];
+                this.coordinateCount = 5;
+                while (this.coordinateCount--) { this.coordinates.push([this.x, this.y]); }
+                this.angle = random(0, Math.PI * 2);
+                this.speed = random(1, 15);
+                this.friction = 0.95;
+                this.gravity = 1;
+                this.hue = random(hue - 50, hue + 50);
+                this.brightness = random(50, 80);
+                this.alpha = 1;
+                this.decay = random(0.01, 0.025);
+            }
+            update(index) {
+                this.coordinates.pop();
+                this.coordinates.unshift([this.x, this.y]);
+                this.speed *= this.friction;
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed + this.gravity;
+                this.alpha -= this.decay;
+                
+                if (this.alpha <= this.decay) {
+                    particles.splice(index, 1);
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+                ctx.lineTo(this.x, this.y);
+                ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+
+        function createParticles(x, y) {
+            let particleCount = 120;
+            while (particleCount--) {
+                particles.push(new Particle(x, y));
+            }
+            if(Math.random() < 0.3) soundManager.play('crackle', 0.5);
+        }
+
+        function loop() {
+            if(!running) return;
+            requestAnimationFrame(loop);
+            
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.globalCompositeOperation = 'lighter';
+
+            hue = random(0, 360);
+
+            let i = fireworks.length;
+            while (i--) {
+                fireworks[i].draw();
+                fireworks[i].update(i);
+            }
+
+            let j = particles.length;
+            while (j--) {
+                particles[j].draw();
+                particles[j].update(j);
+            }
+
+            if (timerTick >= timerTotal) {
+                let shots = Math.floor(random(1, 3));
+                for(let k=0; k<shots; k++) {
+                    fireworks.push(new Firework(cw / 2, ch, random(0, cw), random(0, ch / 2)));
+                    soundManager.play('lift', 0.6);
+                }
+                timerTick = 0;
+            } else {
+                timerTick++;
+            }
+        }
+        const startMask = document.getElementById('start-mask');
+        const startBtn = document.getElementById('start-btn');
+        const loadingTxt = document.getElementById('loading-txt');
+        const textContainer = document.getElementById('text-container');
+        const textContent = document.getElementById('text-content');
+
+        // 预加载
+        soundManager.preload().then(() => {
+            loadingTxt.style.display = 'none';
+            startBtn.style.display = 'block'; // 显示信封
+        });
+
+        // 点击开始
+        startMask.addEventListener('click', () => {
+            soundManager.resume(); 
+            startMask.style.opacity = '0';
+            setTimeout(() => startMask.remove(), 800);
+            
+            running = true;
+            loop();
+            
+            textContainer.style.display = 'block';
+            setTimeout(startTypewriter, 1000);
+        }, {once: true});
+        function manualFire(x, y) {
+            soundManager.resume();
+            fireworks.push(new Firework(cw / 2, ch, x, y));
+            soundManager.play('lift', 0.6);
+        }
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            for(let i=0; i<e.touches.length; i++) manualFire(e.touches[i].clientX, e.touches[i].clientY);
+        }, {passive: false});
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            manualFire(e.clientX, e.clientY);
+        });
+        async function startTypewriter() {
+            for (let i = 0; i < textData.length; i++) {
+                let p = document.createElement('p');
+                textContent.appendChild(p);
+                let cursor = document.createElement('span');
+                cursor.className = 'cursor';
+                p.appendChild(cursor);
+
+                await typeLine(p, cursor, textData[i]);
+
+                if (i < textData.length - 1) cursor.remove();
+                textContainer.scrollTo({ top: textContainer.scrollHeight, behavior: 'smooth' });
+                
+                await new Promise(r => setTimeout(r, 800));
+            }
+        }
+
+        function typeLine(parent, cursor, html) {
+            return new Promise(resolve => {
+                let div = document.createElement('div');
+                div.innerHTML = html;
+                let nodes = Array.from(div.childNodes);
+                let nodeIndex = 0;
+
+                function nextNode() {
+                    if (nodeIndex >= nodes.length) { resolve(); return; }
+                    let node = nodes[nodeIndex];
+                    if (node.nodeType === 3) { 
+                        let text = node.nodeValue;
+                        let charIndex = 0;
+                        function nextChar() {
+                            if (charIndex < text.length) {
+                                let tNode = document.createTextNode(text[charIndex++]);
+                                parent.insertBefore(tNode, cursor);
+                                // 实时滚动
+                                textContainer.scrollTop = textContainer.scrollHeight;
+                                setTimeout(nextChar, 60);
+                            } else {
+                                nodeIndex++; nextNode();
+                            }
+                        }
+                        nextChar();
+                    } else {
+                        let el = document.createElement(node.tagName);
+                        el.className = node.className;
+                        el.innerHTML = node.innerHTML;
+                        parent.insertBefore(el, cursor);
+                        nodeIndex++;
+                        setTimeout(nextNode, 100);
+                    }
+                }
+                nextNode();
+            });
+        }
+
+    </script>
+</body>
+</html>
